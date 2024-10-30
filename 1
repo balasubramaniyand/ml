@@ -1,0 +1,80 @@
+root@opexwise-ml2:/var/opt/bala-irise-localai/image_gen# docker-compose up -d
+[+] Running 2/2
+ ⠿ Network image_gen_default        Created                                                                                   0.2s
+ ⠿ Container image_gen-image_gen-1  Started                                                                                   0.8s
+root@opexwise-ml2:/var/opt/bala-irise-localai/image_gen# docker-compose ps
+NAME                    COMMAND                  SERVICE             STATUS              PORTS
+image_gen-image_gen-1   "python3 server.py -…"   image_gen           running             0.0.0.0:8001->8001/tcp, :::8001->8001/tcp
+root@opexwise-ml2:/var/opt/bala-irise-localai/image_gen# docker-compose logs -f
+image_gen-image_gen-1  | File '/opt/conda/lib/python3.10/site-packages/litserve/python_client.py' copied to '/app/client.py'
+image_gen-image_gen-1  | INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+image_gen-image_gen-1  | OpenAI spec setup complete
+image_gen-image_gen-1  | Swagger UI is available at http://0.0.0.0:8000/docs
+image_gen-image_gen-1  | INFO:     Started server process [22]
+image_gen-image_gen-1  | INFO:     Waiting for application startup.
+image_gen-image_gen-1  | INFO:     Application startup complete.
+image_gen-image_gen-1  | The model weights are not tied. Please use the `tie_weights` method before using the `infer_auto_device` function.
+image_gen-image_gen-1  | /opt/conda/lib/python3.10/site-packages/accelerate/utils/modeling.py:1390: UserWarning: Current model requires 128 bytes of buffer for offloaded layers, which seems does not fit any GPU's remaining memory. If you are experiencing a OOM later, please consider using offload_buffers=True.
+image_gen-image_gen-1  |   warnings.warn(
+Loading checkpoint shards: 100% 5/5 [00:00<00:00,  6.83it/s]
+preprocessor_config.json: 100% 437/437 [00:00<00:00, 1.23MB/s]
+tokenizer_config.json: 100% 55.8k/55.8k [00:00<00:00, 351kB/s]
+config.json: 100% 5.07k/5.07k [00:00<00:00, 11.4MB/s]
+tokenizer.json: 100% 9.09M/9.09M [00:01<00:00, 7.31MB/s]
+special_tokens_map.json: 100% 454/454 [00:00<00:00, 1.39MB/s]
+chat_template.json: 100% 5.15k/5.15k [00:00<00:00, 11.4MB/s]
+image_gen-image_gen-1  | Setup complete for worker 0.
+
+FROM pytorch/pytorch:2.2.2-cuda12.1-cudnn8-runtime
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    software-properties-common \
+    git \
+    python3 \
+    python3-pip \
+    vim \
+    && rm -rf /var/lib/apt/lists/*  # Clean up APT when done
+
+# Copy requirements.txt specifically
+COPY requirements.txt /app/
+
+# Copy all other files to /app
+COPY . /app
+
+EXPOSE 8001
+
+RUN pip3 install --upgrade pip
+
+# Install required packages including Accelerate
+RUN pip3 install --no-cache-dir -r requirements.txt
+RUN pip3 install --no-cache-dir 'accelerate>=0.26.0'
+
+CMD ["python3", "server.py", "--server.port=8001", "--server.address=0.0.0.0"]
+
+version: '3.8'
+
+services:
+  image_gen:
+    image: imagegen:0.4
+    restart: always
+    ports:
+      - "8001:8001"
+    command: python3 server.py --server.port=8001 --server.address=0.0.0.0
+    environment:
+      - PYTHONUNBUFFERED=1
+    stdin_open: true
+    tty: true
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['1']
+              capabilities: [gpu]
+    volumes:
+      - ./model:/app/model
+
