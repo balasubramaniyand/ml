@@ -1,0 +1,109 @@
+worker_processes 1;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    client_max_body_size 100M;
+    sendfile on;
+
+    # Timeout and Buffer Settings
+    send_timeout 300s;
+    proxy_connect_timeout 300s;
+    proxy_send_timeout 300s;
+    proxy_read_timeout 300s;
+
+    # Proxy Buffers to handle large headers/bodies
+    proxy_buffer_size 128k;
+    proxy_buffers 4 256k;
+    proxy_busy_buffers_size 256k;
+
+    upstream docker-opexwisebotapi {
+        server opexwisebot:80;
+    }
+    upstream docker-opexwiseapi {
+        server app-opexwise-1;
+    }
+    upstream docker-jobapi {
+        server job_api-jobapi-1:80;
+    }
+    upstream docker-prodsuperset {
+        server 10.10.50.14:8003;
+    }
+
+    # NGINX Servers Configuration
+
+    # Server for docker-opexwisebotapi
+    server {
+        listen 8001;
+        server_name 10.10.50.25;
+        client_max_body_size 100M;
+
+        location / {
+            proxy_pass http://docker-opexwisebotapi/;
+            proxy_http_version 1.1;  # Enable HTTP/1.1 for keep-alive
+            proxy_set_header Connection "";
+            proxy_redirect off;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $server_name;
+        }
+    }
+
+    # Server for docker-opexwiseapi
+    server {
+        listen 8002;
+        server_name 10.10.50.25;
+        client_max_body_size 100M;
+
+        location / {
+            proxy_pass http://docker-opexwiseapi/;
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";
+            proxy_redirect off;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $server_name;
+            proxy_read_timeout 300s;
+        }
+    }
+
+    # Server for docker-jobapi
+    server {
+        listen 8003;
+        server_name 10.10.50.25;
+        client_max_body_size 100M;
+
+        location / {
+            proxy_pass http://docker-jobapi/;
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";
+            proxy_redirect off;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $server_name;
+        }
+    }
+
+    # Server for docker-prodsuperset
+    server {
+        listen 8004;
+        server_name 10.10.50.25;
+        client_max_body_size 100M;
+
+        location / {
+            proxy_pass http://docker-prodsuperset/;
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";
+            proxy_redirect off;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $server_name;
+        }
+    }
+}
