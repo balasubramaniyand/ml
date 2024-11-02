@@ -1,0 +1,199 @@
+worker_processes auto;
+
+events {
+    worker_connections 4096;
+}
+
+http {
+    # Global settings
+    client_max_body_size 100M;
+    keepalive_timeout 65s;
+    proxy_headers_hash_max_size 512;
+    sendfile on;
+
+    # SSL settings
+    ssl_certificate /etc/nginx/certs/opexwise.crt;
+    ssl_certificate_key /etc/nginx/certs/opexwise.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384";
+    ssl_prefer_server_ciphers on;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 10m;
+
+    # Proxy settings
+    proxy_http_version 1.1;
+    proxy_buffering off;
+    proxy_connect_timeout 60s;
+    proxy_send_timeout 60s;
+    proxy_read_timeout 60s;
+    send_timeout 60s;
+
+    # Upstream servers
+    upstream docker-opexwiseui {
+        server opexwiseui:80;
+        keepalive 16;
+    }
+    upstream docker-opexwisebot {
+        server 10.10.50.25:8001;
+        keepalive 16;
+    }
+    upstream docker-opexwiseapi {
+        server 10.10.50.25:8002;
+        keepalive 16;
+    }
+    upstream docker-superset {
+        server 10.10.50.26:8003;
+        keepalive 16;
+    }
+    upstream docker-sso {
+        server 10.10.50.26:8008;
+        keepalive 16;
+    }
+    upstream docker-jobapi {
+        server 10.10.50.25:8003;
+        keepalive 16;
+    }
+    upstream docker-mlapi {
+        server 10.10.50.33:8072;
+        keepalive 16;
+    }
+    upstream docker-agent {
+        server 10.10.50.27:9001;
+        keepalive 16;
+    }
+    upstream docker-supersetgauth {
+        server 10.10.50.30:8088;
+        keepalive 16;
+    }
+
+    # Common server block configuration
+    map $server_port $server_port_suffix {
+        default "";
+        443 "";
+    }
+
+    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log /var/log/nginx/access.log main;
+    error_log /var/log/nginx/error.log warn;
+
+    # Nginx Server Blocks
+    server {
+        listen 443 ssl;
+        server_name 10.10.50.30;
+
+        location / {
+            proxy_pass http://docker-opexwiseui/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $server_name;
+        }
+    }
+
+    server {
+        listen 8001 ssl;
+        server_name 10.10.50.30;
+
+        location / {
+            proxy_pass http://docker-opexwisebot/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $server_name;
+        }
+    }
+
+    server {
+        listen 8002 ssl;
+        server_name 10.10.50.30;
+
+        location / {
+            proxy_pass http://docker-opexwiseapi/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $server_name;
+        }
+    }
+
+    server {
+        listen 8003 ssl;
+        server_name 10.10.50.30;
+
+        location / {
+            proxy_pass http://docker-superset/;
+            proxy_set_header Host $host:$server_port;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $server_name;
+        }
+    }
+
+    server {
+        listen 8008 ssl;
+        server_name 10.10.50.30;
+
+        location / {
+            proxy_pass http://docker-sso/;
+            proxy_set_header Host $host:$server_port;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $server_name;
+        }
+    }
+
+    server {
+        listen 8009 ssl;
+        server_name 10.10.50.30;
+
+        location / {
+            proxy_pass http://docker-jobapi/;
+            proxy_set_header Host $host:$server_port;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $server_name;
+        }
+    }
+
+    server {
+        listen 8011 ssl;
+        server_name 10.10.50.30;
+
+        location / {
+            proxy_pass http://docker-mlapi/;
+            proxy_set_header Host $host:$server_port;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $server_name;
+        }
+    }
+
+    server {
+        listen 8012 ssl;
+        server_name 10.10.50.30;
+
+        location / {
+            proxy_pass http://docker-agent/;
+            proxy_set_header Host $host:$server_port;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $server_name;
+        }
+    }
+
+    server {
+        listen 8010 ssl;
+        server_name test.opexwise.ai;
+
+        location / {
+            proxy_pass http://docker-supersetgauth/;
+            proxy_set_header Host $host:$server_port;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $server_name;
+        }
+    }
+}
