@@ -1,0 +1,203 @@
+worker_processes 1;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    client_max_body_size 100M;
+    proxy_headers_hash_max_size 1024; # Increased to avoid warnings
+    proxy_headers_hash_bucket_size 128; # Increased to avoid warnings
+    proxy_connect_timeout 600s; # Changed from 600m to 600s
+    proxy_send_timeout 600s; # Changed from 600m to 600s
+    proxy_read_timeout 600s; # Changed from 600m to 600s
+    send_timeout 600s; # Changed from 600m to 600s
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    ssl_prefer_server_ciphers on;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;  
+    
+    sendfile on;
+
+    upstream docker-opexwiseui {
+        server opexwiseui:80;
+    }
+    upstream docker-opexwisebot {
+        server 10.10.50.25:8001;
+    }
+    upstream docker-opexwiseapi {
+        server 10.10.50.25:8002;
+    }
+    upstream docker-superset {
+        server 10.10.50.26:8003;
+    }
+    upstream docker-sso {
+        server 10.10.50.26:8008;
+    }
+    upstream docker-jobapi {
+        server 10.10.50.25:8003;
+    } 
+    upstream docker-mlapi {
+        server 10.10.50.33:8072;
+    }
+    upstream docker-agent {
+        server 10.10.50.27:9001;
+    }
+    upstream docker-supersetgauth {
+        server 10.10.50.30:8088;
+    }
+
+    server {
+        listen 443 ssl;
+        server_name test.opexwise.ai; # Make sure this is your intended server name
+
+        ssl_certificate /etc/nginx/certs/opexwise.crt;
+        ssl_certificate_key /etc/nginx/certs/opexwise.key;
+
+        location / {
+            proxy_pass http://docker-opexwiseui/;
+            proxy_redirect off;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $server_name;
+        }
+    }
+
+    server {
+        listen 8001 ssl;
+        server_name test.opexwise.ai;
+
+        ssl_certificate /etc/nginx/certs/opexwise.crt;
+        ssl_certificate_key /etc/nginx/certs/opexwise.key;
+
+        location / {
+            proxy_pass http://docker-opexwisebot/;
+            proxy_redirect off;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $server_name;
+        }
+    }
+
+    server {
+        listen 8002 ssl;
+        server_name test.opexwise.ai;
+
+        ssl_certificate /etc/nginx/certs/opexwise.crt;
+        ssl_certificate_key /etc/nginx/certs/opexwise.key;
+
+        location / {
+            proxy_pass http://docker-opexwiseapi/;
+            proxy_redirect off;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $server_name;
+        }
+    }
+
+    server {
+        listen 8003 ssl;
+        server_name test.opexwise.ai;
+
+        ssl_certificate /etc/nginx/certs/opexwise.crt;
+        ssl_certificate_key /etc/nginx/certs/opexwise.key;
+
+        location / {
+            proxy_pass http://docker-superset/;
+            proxy_redirect off;
+            proxy_set_header Host $host:$server_port;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $server_name;
+        }
+    }
+
+    server {
+        listen 8008 ssl;
+        server_name test.opexwise.ai;
+
+        ssl_certificate /etc/nginx/certs/opexwise.crt;
+        ssl_certificate_key /etc/nginx/certs/opexwise.key;
+
+        location / {
+            proxy_pass http://docker-sso/;
+            proxy_redirect off;
+            proxy_set_header Host $host:$server_port;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $server_name;
+        }
+    }
+
+    server {
+        listen 8009 ssl;
+        server_name test.opexwise.ai;
+
+        ssl_certificate /etc/nginx/certs/opexwise.crt;
+        ssl_certificate_key /etc/nginx/certs/opexwise.key;
+
+        location / {
+            proxy_pass http://docker-jobapi/;
+            proxy_redirect off;
+            proxy_set_header Host $host:$server_port;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $server_name;
+        }
+    }
+
+    server {
+        listen 8011 ssl;
+        server_name test.opexwise.ai;
+
+        ssl_certificate /etc/nginx/certs/opexwise.crt;
+        ssl_certificate_key /etc/nginx/certs/opexwise.key;
+
+        location / {
+            proxy_pass http://docker-mlapi/;
+            proxy_redirect off;
+            proxy_set_header Host $host:$server_port;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $server_name;
+        }
+    }
+
+    server {
+        listen 8012 ssl;
+        server_name test.opexwise.ai;
+
+        ssl_certificate /etc/nginx/certs/opexwise.crt;
+        ssl_certificate_key /etc/nginx/certs/opexwise.key;
+
+        location / {
+            proxy_pass http://docker-agent/;
+            proxy_redirect off;
+            proxy_set_header Host $host:$server_port;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $server_name;
+        }
+    }
+
+    server {
+        listen 8010 ssl;
+        server_name test.opexwise.ai;
+
+        ssl_certificate /etc/nginx/certs/opexwise.crt;
+        ssl_certificate_key /etc/nginx/certs/opexwise.key;
+
+        location / {
+            proxy_pass http://docker-supersetgauth/;
+            proxy_redirect off;
+            proxy_set_header Host $host:$server_port;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $server_name;
+        }
+    }
+}
