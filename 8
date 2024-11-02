@@ -1,0 +1,117 @@
+2024/11/02 07:49:39 [error] 22#22: *157 upstream prematurely closed connection while reading upstream, client: 10.10.50.30, server: 10.10.50.25, request: "POST /opexwise/user/details/ HTTP/1.0", upstream: "http://172.18.0.6:80/opexwise/user/details/", host: "demo.opexwise.ai", referrer: "https://demo.opexwise.ai/"
+^C
+root@opexwise-test-bot:/var/opt/proxy/nginxlog# cd ..
+root@opexwise-test-bot:/var/opt/proxy# vi nginx.conf
+root@opexwise-test-bot:/var/opt/proxy# cat nginx.conf
+worker_processes 1;
+
+events { worker_connections 1024; }
+
+http {
+        client_max_body_size 100M;
+        send_timeout 600m;
+        proxy_send_timeout 600m;
+        proxy_read_timeout 600m;
+        proxy_connect_timeout 600m;
+
+    
+        sendfile on;
+
+        upstream docker-opexwisebotapi {
+                server opexwisebot:80;
+        }
+        upstream docker-opexwiseapi {
+                server app-opexwise-1;
+        }
+        upstream docker-jobapi {
+                server job_api-jobapi-1:80;
+        }
+        upstream docker-prodsuperset {
+                server 10.10.50.14:8003;
+        }
+
+        server {
+                client_max_body_size 100M;
+                proxy_connect_timeout 600m;
+                proxy_send_timeout 600m;
+                proxy_read_timeout 600m;
+                send_timeout 600m;
+
+                listen              8001;
+                server_name         10.10.50.25;
+                location / {
+                        proxy_pass         http://docker-opexwisebotapi/;
+                        proxy_redirect     off;
+                        proxy_set_header   Host $host;
+                        proxy_set_header   X-Real-IP $remote_addr;
+                        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+                        proxy_set_header   X-Forwarded-Host $server_name;
+                }
+        }
+
+        server {
+                client_max_body_size 100M;
+                proxy_connect_timeout 600m;
+                proxy_send_timeout 600m;
+                proxy_read_timeout 600m;
+                send_timeout 600m;
+
+                listen              8002;
+                server_name         10.10.50.25;
+
+                location / {
+                        proxy_pass         http://docker-opexwiseapi/;
+                      #  proxy_http_version 1.1;
+                      #  proxy_buffers 8 64k;
+                       # proxy_buffer_size 128k;
+                       # proxy_set_header Upgrade $http_upgrade;
+                       # proxy_set_header Connection 'upgrade';
+                       # proxy_set_header Host $host;
+                       # proxy_cache_bypass $http_upgrade;
+                        proxy_redirect     off;
+                        proxy_set_header   Host $host;
+                        proxy_set_header   X-Real-IP $remote_addr;
+                        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+                        proxy_set_header   X-Forwarded-Host $server_name;
+                        proxy_read_timeout 36000s;
+                }
+        }
+        server {
+                client_max_body_size 100M;
+                proxy_connect_timeout 600m;
+                proxy_send_timeout 600m;
+                proxy_read_timeout 600m;
+                send_timeout 600m;
+
+                listen              8003;
+                server_name         10.10.50.25;
+
+                location / {
+                        proxy_pass         http://docker-jobapi/;
+                        proxy_redirect     off;
+                        proxy_set_header   Host $host;
+                        proxy_set_header   X-Real-IP $remote_addr;
+                        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+                        proxy_set_header   X-Forwarded-Host $server_name;
+                }
+        }
+        server {
+                client_max_body_size 100M;
+                proxy_connect_timeout 600m;
+                proxy_send_timeout 600m;
+                proxy_read_timeout 600m;
+                send_timeout 600m;
+
+                listen              8004;
+                server_name         10.10.50.25;
+
+                location / {
+                        proxy_pass         http://docker-prodsuperset/;
+                        proxy_redirect     off;
+                        proxy_set_header   Host $host;
+                        proxy_set_header   X-Real-IP $remote_addr;
+                        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+                        proxy_set_header   X-Forwarded-Host $server_name;
+                }
+        }
+}
