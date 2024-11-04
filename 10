@@ -1,0 +1,45 @@
+image_gen-image_gen-1  | Traceback (most recent call last):
+image_gen-image_gen-1  |   File "/app/server.py", line 13, in <module>
+image_gen-image_gen-1  |     logger = logging.getLogger()
+image_gen-image_gen-1  | AttributeError: module 'flask.logging' has no attribute 'getLogger'
+image_gen-image_gen-1  | Traceback (most recent call last):
+image_gen-image_gen-1  |   File "/app/server.py", line 13, in <module>
+image_gen-image_gen-1  |     logger = logging.getLogger()
+image_gen-image_gen-1  | AttributeError: module 'flask.logging' has no attribute 'getLogger'
+image_gen-image_gen-1  | Traceback (most recent call last):
+image_gen-image_gen-1  |   File "/app/server.py", line 13, in <module>
+image_gen-image_gen-1  |     logger = logging.getLogger()
+image_gen-image_gen-1  | AttributeError: module 'flask.logging' has no attribute 'getLogger'
+image_gen-image_gen-1 exited with code 1
+^Ccanceled
+root@opexwise-ml2:/var/opt/bala-irise-localai/image_gen# vi docker-compose.yaml 
+root@opexwise-ml2:/var/opt/bala-irise-localai/image_gen# cat Dockerfile 
+FROM pytorch/pytorch:2.2.2-cuda12.1-cudnn8-runtime
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    software-properties-common \
+    git \
+    python3 \
+    python3-pip \
+    vim \
+    && rm -rf /var/lib/apt/lists/*  # Clean up APT when done
+
+# Copy requirements.txt specifically
+COPY requirements.txt /app/
+
+# Copy all other files to /app
+COPY . /app
+
+EXPOSE 8001
+
+RUN pip3 install --upgrade pip
+
+# Install required packages including Accelerate
+RUN pip3 install --no-cache-dir -r requirements.txt
+RUN pip3 install --no-cache-dir 'accelerate>=0.26.0'
+
+CMD ["python3", "server.py", "--server.port=8001", "--server.address=0.0.0.0"]root@opexwise-ml2:/var/opt/bala-irise-localai/image_gen# vi Dockerfile 
