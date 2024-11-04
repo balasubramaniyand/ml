@@ -28,6 +28,32 @@ RUN apt-get update && apt-get install -y \
     vim \
     && rm -rf /var/lib/apt/lists/*  # Clean up APT when done
 
+
+
+version: '3.8'
+
+services:
+  image_gen:
+    image: imagegen:0.3
+    restart: always
+    ports:
+      - "8001:8001"
+    command: python3 server.py --server.port=8001 --server.address=0.0.0.0
+    environment:
+      - PYTHONUNBUFFERED=1
+    stdin_open: true
+    tty: true
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['1']
+              capabilities: [gpu]
+    volumes:
+      - ./model:/app/model
+
+
 # Copy requirements.txt specifically
 COPY requirements.txt /app/
 
