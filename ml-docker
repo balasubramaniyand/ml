@@ -1,0 +1,30 @@
+oot@opexwise-ml2:~/image_gen_flux_ls# docker-compose up -d
+[+] Running 1/2
+ ⠿ Network image_gen_flux_ls_default        Created                                                                           0.2s
+ ⠿ Container image_gen_flux_ls-image_gen-1  Starting                                                                          0.3s
+Error response from daemon: could not select device driver "nvidia" with capabilities: [[]]
+root@opexwise-ml2:~/image_gen_flux_ls# cat docker-compose.yaml 
+version: '3.8'
+
+services:
+  image_gen:
+    image: imagen_gen-lite:0.0.2  
+    restart: always
+    ports:
+      - "8006:8006"
+    command: python3 server.py --server.port=8001 --server.address=0.0.0.0
+    environment:
+      - PYTHONUNBUFFERED=1
+      - NVIDIA_VISIBLE_DEVICES=all  # Optional: specify which GPUs to use
+    stdin_open: true
+    tty: true
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['0', '1']  # Specify the GPU IDs you want to use
+    runtime: nvidia  # Specify the NVIDIA runtime for this service
+    volumes:
+      - ./model:/app/model
+root@opexwise-ml2:~/image_gen_flux_ls# 
