@@ -1,0 +1,89 @@
+worker_processes auto;
+
+events {
+    worker_connections 1024;
+    use epoll;
+}
+
+http {
+    client_max_body_size 100M;
+    send_timeout 600s;
+    proxy_send_timeout 600s;
+    proxy_read_timeout 600s;
+    proxy_connect_timeout 600s;
+
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+
+    # Define upstreams for multiple applications
+    upstream docker-chatbot {
+        server 10.10.50.14:8071;
+    }
+
+    upstream docker-chatbot-ticket-streamlit-app-1 {
+        server 10.10.50.14:8004;
+    }
+
+    # Server block for the chatbot application
+    server {
+        listen 443 ssl;
+        server_name rigel-chat.opexwise.ai;
+
+        ssl_certificate /etc/nginx/certs/opexwise1.crt;
+        ssl_certificate_key /etc/nginx/certs/opexwise.key;
+        ssl_protocols TLSv1.2 TLSv1.3;
+
+        location / {
+            proxy_pass http://docker-chatbot;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+        }
+
+        location /_store/stream {
+            proxy_pass http://docker-chatbot/_store/stream;
+            proxy_http_version 1.1;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header Host $host;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_read_timeout 86400;
+        }
+    }
+
+    # Server block for the Streamlit ticketing application
+    server {
+        listen 443 ssl;
+        server_name rigel.opexwise.ai;
+
+        ssl_certificate /etc/nginx/certs/opexwise1.crt;
+        ssl_certificate_key /etc/nginx/certs/opexwise.key;
+        ssl_protocols TLSv1.2 TLSv1.3;
+
+        location / {
+            proxy_pass http://docker-chatbot-ticket-streamlit-app-1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+        }
+
+        location /_stcore/stream {
+            proxy_pass http://docker-chatbot-ticket-streamlit-app-1/_stcore/stream;
+            proxy_http_version 1.1;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header Host $host;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_read_timeout 86400;
+        }
+    }
+}
