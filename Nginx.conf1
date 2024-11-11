@@ -1,0 +1,99 @@
+worker_processes auto;  # Auto-adjust based on the number of CPU cores
+
+events {
+    worker_connections 1024;  
+    multi_accept on;           # Accept as many connections as possible per worker
+    use epoll;                 # Use efficient event handling for Linux systems
+}
+
+http {
+    client_max_body_size 100M;  
+    send_timeout 600m;           
+    proxy_send_timeout 600m;     
+    proxy_read_timeout 600m;     
+    proxy_connect_timeout 600m;  
+
+    sendfile on;               
+    tcp_nopush on;             # Improve performance for large files
+    tcp_nodelay on;            # Send data without buffering delays
+
+    # Define upstreams
+    upstream docker-chatbot {
+        server 10.10.50.14:8071;
+        keepalive 32;          # Maintain 32 idle connections
+    }
+    
+    upstream docker-chatbot-ticket-streamlit-app-1 {
+        server 10.10.50.14:8004;
+        keepalive 32;          # Maintain 32 idle connections
+    }
+
+    # Server block for rigel-chat.opexwise.ai
+    server {
+        listen 443 ssl http2;                      # Enable HTTP/2 for faster communication
+        server_name rigel-chat.opexwise.ai;  
+        
+        ssl_certificate /etc/nginx/certs/opexwise1.crt;  
+        ssl_certificate_key /etc/nginx/certs/opexwise.key;
+
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers HIGH:!aNULL:!MD5;              # Strong ciphers for security
+
+        location / {
+            proxy_pass http://docker-chatbot/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+        }
+
+        # Streamlit-specific location for WebSocket connections
+        location /_stcore/stream {
+            proxy_pass http://docker-chatbot/_stcore/stream;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_read_timeout 86400;  
+        }
+    }
+
+    # Server block for rigel.opexwise.ai
+    server {
+        listen 8006 ssl http2;
+        server_name rigel.opexwise.ai;
+
+        ssl_certificate /etc/nginx/certs/opexwise1.crt;  
+        ssl_certificate_key /etc/nginx/certs/opexwise.key;
+
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers HIGH:!aNULL:!MD5;
+
+        location / {
+            proxy_pass http://docker-chatbot-ticket-streamlit-app-1/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+        }
+
+        location /_stcore/stream {
+            proxy_pass http://docker-chatbot-ticket-streamlit-app-1/_stcore/stream; 
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_read_timeout 86400; 
+        }
+    }
+}
